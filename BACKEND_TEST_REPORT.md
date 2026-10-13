@@ -2,12 +2,14 @@
 
 ## Run
 
-- Command: `.\mvnw.cmd -B clean test`
+- Command: `.\mvnw.cmd --batch-mode --no-transfer-progress clean test`
 - Executed: 2026-10-13
 - Result: **PASS**
 - Runtime: Java 21.0.12
 - Test cases: **17 run, 0 failures, 0 errors, 0 skipped**
 - Maven result: `BUILD SUCCESS`
+
+The command completed after a clean build on this Windows workspace. GitHub Actions itself was not dispatched from this run; its Ubuntu job now applies `chmod +x ./mvnw` before invoking the wrapper, and the Git index records `mvnw` as executable (`100755`).
 
 ## Coverage executed
 
