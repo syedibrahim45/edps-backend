@@ -2,6 +2,7 @@ package com.edps.service;
 
 import com.edps.dto.AuditVerificationResponse;
 import com.edps.entity.AuditRecord;
+import com.edps.repository.AuditChainLockRepository;
 import com.edps.repository.AuditRecordRepository;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
@@ -24,17 +25,22 @@ public class IntegrityAuditService {
     private static final String GENESIS_HASH = "GENESIS";
 
     private final AuditRecordRepository auditRecordRepository;
+    private final AuditChainLockRepository auditChainLockRepository;
     private final ObjectMapper objectMapper;
 
     public IntegrityAuditService(
             AuditRecordRepository auditRecordRepository,
+            AuditChainLockRepository auditChainLockRepository,
             ObjectMapper objectMapper) {
         this.auditRecordRepository = auditRecordRepository;
+        this.auditChainLockRepository = auditChainLockRepository;
         this.objectMapper = objectMapper;
     }
 
     @Transactional
-    public synchronized AuditRecord append(String reference, Map<String, Object> payloadValues) {
+    public AuditRecord append(String reference, Map<String, Object> payloadValues) {
+        auditChainLockRepository.findByIdForUpdate(1L)
+                .orElseThrow(() -> new IllegalStateException("Audit chain lock is not initialized."));
         String payload = serialize(new TreeMap<>(payloadValues));
         String payloadHash = sha256(payload);
         var latestRecord = auditRecordRepository.findTopByOrderByIdDesc();
@@ -52,10 +58,6 @@ public class IntegrityAuditService {
         record.setPreviousHash(previousHash);
         record.setCurrentHash(hashRecord(stableReference, timestamp, payloadHash, previousHash));
         return auditRecordRepository.save(record);
-    }
-
-    public String fingerprint(Map<String, Object> values) {
-        return sha256(serialize(new TreeMap<>(values)));
     }
 
     @Transactional(readOnly = true)

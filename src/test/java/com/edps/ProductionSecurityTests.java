@@ -67,7 +67,30 @@ class ProductionSecurityTests {
                         .cookie(new MockCookie(cookie.getName(), cookie.getValue()))
                         .header("X-XSRF-TOKEN", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Synthetic Patient\"}"))
+                        .content("""
+                                {
+                                  "name": "Synthetic Patient",
+                                  "age": 40,
+                                  "gender": "female",
+                                  "bloodPressure": 120,
+                                  "glucose": 95,
+                                  "bmi": 24.5,
+                                  "heartRate": 72,
+                                  "cholesterol": 180
+                                }
+                                """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void healthEndpointIsAvailableWithoutAuthenticationAndCorsRejectsUnknownOrigins() throws Exception {
+        mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/patients")
+                        .header("Origin", "https://untrusted.example"))
+                .andExpect(status().isForbidden())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .header().doesNotExist("Access-Control-Allow-Origin"));
     }
 }

@@ -6,6 +6,8 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -17,13 +19,16 @@ public class Patient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank
     @Size(max = 120)
     private String name;
 
+    @NotNull
     @Min(1)
     @Max(120)
     private Integer age;
 
+    @NotBlank
     @Pattern(regexp = "(?i)male|female|m|f|0|1")
     private String gender;
 
@@ -34,22 +39,27 @@ public class Patient {
     @Size(max = 254)
     private String email;
 
+    @NotNull
     @Min(1)
     @Max(400)
     private Integer bloodPressure;
 
+    @NotNull
     @Min(1)
     @Max(1000)
     private Integer glucose;
 
+    @NotNull
     @DecimalMin("0.1")
     @DecimalMax("100.0")
     private Double bmi;
 
+    @NotNull
     @Min(1)
     @Max(300)
     private Integer heartRate;
 
+    @NotNull
     @Min(1)
     @Max(1000)
     private Integer cholesterol;

@@ -4,6 +4,7 @@ import com.edps.entity.Patient;
 import com.edps.exception.ConflictException;
 import com.edps.exception.NotFoundException;
 import com.edps.repository.PatientRepository;
+import com.edps.repository.PredictionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +16,15 @@ import java.util.Map;
 public class PatientService {
 
     private final PatientRepository patientRepository;
+    private final PredictionRepository predictionRepository;
     private final IntegrityAuditService integrityAuditService;
 
-    public PatientService(PatientRepository patientRepository, IntegrityAuditService integrityAuditService) {
+    public PatientService(
+            PatientRepository patientRepository,
+            PredictionRepository predictionRepository,
+            IntegrityAuditService integrityAuditService) {
         this.patientRepository = patientRepository;
+        this.predictionRepository = predictionRepository;
         this.integrityAuditService = integrityAuditService;
     }
 
@@ -67,6 +73,10 @@ public class PatientService {
     public boolean deletePatient(Long id) {
         Patient existingPatient = patientRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Patient " + id + " was not found."));
+        if (predictionRepository.existsByPatient_Id(id)) {
+            throw new ConflictException(
+                    "Patient " + id + " has prediction history and cannot be deleted.");
+        }
 
         recordAudit("PATIENT_DELETED", existingPatient);
         patientRepository.delete(existingPatient);
@@ -74,22 +84,9 @@ public class PatientService {
     }
 
     private void recordAudit(String eventType, Patient patient) {
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("name", patient.getName());
-        snapshot.put("age", patient.getAge());
-        snapshot.put("gender", patient.getGender());
-        snapshot.put("phone", patient.getPhone());
-        snapshot.put("email", patient.getEmail());
-        snapshot.put("bloodPressure", patient.getBloodPressure());
-        snapshot.put("glucose", patient.getGlucose());
-        snapshot.put("bmi", patient.getBmi());
-        snapshot.put("heartRate", patient.getHeartRate());
-        snapshot.put("cholesterol", patient.getCholesterol());
-
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("eventType", eventType);
         payload.put("patientId", patient.getId());
-        payload.put("patientSnapshotHash", integrityAuditService.fingerprint(snapshot));
         integrityAuditService.append("patient:" + patient.getId(), payload);
     }
 }

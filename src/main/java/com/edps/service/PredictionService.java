@@ -271,10 +271,6 @@ public class PredictionService {
         payload.put("eventType", eventType);
         payload.put("predictionId", prediction.getId());
         payload.put("patientId", prediction.getPatient().getId());
-        payload.put("diseaseType", prediction.getDiseaseType());
-        payload.put("predictionResult", prediction.getPredictionResult());
-        payload.put("riskLevel", prediction.getRiskLevel());
-        payload.put("probability", prediction.getProbability());
         integrityAuditService.append("prediction:" + prediction.getId(), payload);
     }
 
