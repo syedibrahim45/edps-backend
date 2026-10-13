@@ -37,9 +37,10 @@ public class IntegrityAuditService {
     public synchronized AuditRecord append(String reference, Map<String, Object> payloadValues) {
         String payload = serialize(new TreeMap<>(payloadValues));
         String payloadHash = sha256(payload);
-        String previousHash = auditRecordRepository.findTopByOrderByIdDesc()
-                .map(AuditRecord::getCurrentHash)
-                .orElse(GENESIS_HASH);
+        var latestRecord = auditRecordRepository.findTopByOrderByIdDesc();
+        String previousHash = latestRecord.isPresent()
+                ? latestRecord.get().getCurrentHash()
+                : GENESIS_HASH;
         Instant timestamp = Instant.now().truncatedTo(ChronoUnit.MICROS);
         String stableReference = reference + ":" + UUID.randomUUID();
 
