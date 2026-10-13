@@ -7,4 +7,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PredictionRepository extends JpaRepository<Prediction, Long> {
 
+    java.util.List<Prediction> findAllByOrderByCreatedAtDescIdDesc();
+
+    java.util.List<Prediction> findByPatient_IdOrderByCreatedAtDescIdDesc(Long patientId);
 }

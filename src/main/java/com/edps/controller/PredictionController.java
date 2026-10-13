@@ -1,7 +1,10 @@
 package com.edps.controller;
 
+import com.edps.dto.PredictionRequest;
+import com.edps.dto.PredictionResponse;
 import com.edps.entity.Prediction;
 import com.edps.service.PredictionService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,24 +20,29 @@ public class PredictionController {
     }
 
     @PostMapping
-    public Prediction createPrediction(@RequestBody Prediction prediction) {
+    public PredictionResponse createPrediction(@Valid @RequestBody PredictionRequest prediction) {
         return predictionService.createPrediction(prediction);
     }
 
     @GetMapping
-    public List<Prediction> getAllPredictions() {
+    public List<PredictionResponse> getAllPredictions() {
         return predictionService.getAllPredictions();
     }
 
+    @GetMapping("/patient/{patientId}")
+    public List<PredictionResponse> getPredictionsByPatientId(@PathVariable Long patientId) {
+        return predictionService.getPredictionsByPatientId(patientId);
+    }
+
     @GetMapping("/{id}")
-    public Prediction getPredictionById(@PathVariable Long id) {
+    public PredictionResponse getPredictionById(@PathVariable Long id) {
         return predictionService.getPredictionById(id);
     }
 
     @PutMapping("/{id}")
-    public Prediction updatePrediction(
+    public PredictionResponse updatePrediction(
             @PathVariable Long id,
-            @RequestBody Prediction prediction) {
+            @Valid @RequestBody Prediction prediction) {
 
         return predictionService.updatePrediction(id, prediction);
     }

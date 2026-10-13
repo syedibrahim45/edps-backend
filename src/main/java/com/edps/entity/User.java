@@ -1,6 +1,9 @@
 package com.edps.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "users")
@@ -11,12 +14,19 @@ public class User {
     private Long id;
 
     @Column(nullable = false, unique = true)
+    @NotBlank
+    @Size(max = 100)
     private String username;
 
     @Column(nullable = false)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @NotBlank
+    @Size(min = 8, max = 200)
     private String password;
 
     @Column(nullable = false)
+    @NotBlank
+    @Size(max = 30)
     private String role;
 
     public User() {

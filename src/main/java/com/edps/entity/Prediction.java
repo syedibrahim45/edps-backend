@@ -1,6 +1,9 @@
 package com.edps.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
@@ -12,12 +15,17 @@ public class Prediction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Size(max = 120)
     private String diseaseType;
 
+    @Size(max = 100)
     private String predictionResult;
 
+    @Size(max = 100)
     private String riskLevel;
 
+    @DecimalMin("0.0")
+    @DecimalMax("1.0")
     private Double probability;
 
     private LocalDateTime createdAt;

@@ -1,6 +1,13 @@
 package com.edps.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "patients")
@@ -10,24 +17,41 @@ public class Patient {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Size(max = 120)
     private String name;
 
+    @Min(1)
+    @Max(120)
     private Integer age;
 
+    @Pattern(regexp = "(?i)male|female|m|f|0|1")
     private String gender;
 
+    @Size(max = 30)
     private String phone;
 
+    @Email
+    @Size(max = 254)
     private String email;
 
+    @Min(1)
+    @Max(400)
     private Integer bloodPressure;
 
+    @Min(1)
+    @Max(1000)
     private Integer glucose;
 
+    @DecimalMin("0.1")
+    @DecimalMax("100.0")
     private Double bmi;
 
+    @Min(1)
+    @Max(300)
     private Integer heartRate;
 
+    @Min(1)
+    @Max(1000)
     private Integer cholesterol;
 
     public Patient() {

@@ -2,6 +2,7 @@ package com.edps.controller;
 
 import com.edps.entity.Patient;
 import com.edps.service.PatientService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +18,7 @@ public class PatientController {
     }
 
     @PostMapping
-    public Patient createPatient(@RequestBody Patient patient) {
+    public Patient createPatient(@Valid @RequestBody Patient patient) {
         return patientService.createPatient(patient);
     }
 
@@ -32,7 +33,7 @@ public class PatientController {
     }
 
     @PutMapping("/{id}")
-    public Patient updatePatient(@PathVariable Long id, @RequestBody Patient patient) {
+    public Patient updatePatient(@PathVariable Long id, @Valid @RequestBody Patient patient) {
         return patientService.updatePatient(id, patient);
     }
 
