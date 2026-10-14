@@ -22,6 +22,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -65,6 +68,9 @@ class EdpsBackendApplicationTests {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private IntegrityAuditService integrityAuditService;
@@ -279,6 +285,33 @@ class EdpsBackendApplicationTests {
         mockMvc.perform(get("/predictions/patient/{patientId}", patientRepository.findAll().getFirst().getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
+    }
+
+    @Test
+    void mlDashboardRoutesProxyStructuredJsonToConfiguredService() throws Exception {
+        when(mlPredictionService.getHealth())
+                .thenReturn(objectMapper.readTree("{\"status\":\"ok\"}"));
+        when(mlPredictionService.getGlobalExplainability())
+                .thenReturn(objectMapper.readTree("{\"features\":[]}"));
+        when(mlPredictionService.getFederatedResults())
+                .thenReturn(objectMapper.readTree("{\"rounds\":[]}"));
+        when(mlPredictionService.explainIndividual(any(JsonNode.class)))
+                .thenReturn(objectMapper.readTree("{\"explanation\":\"synthetic\"}"));
+
+        mockMvc.perform(get("/api/ml/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ok"));
+        mockMvc.perform(get("/api/ml/explainability/global"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.features").isArray());
+        mockMvc.perform(post("/api/ml/explainability/individual")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"age\":45,\"glucose\":110}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.explanation").value("synthetic"));
+        mockMvc.perform(get("/api/ml/federated/results"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rounds").isArray());
     }
 
     @Test

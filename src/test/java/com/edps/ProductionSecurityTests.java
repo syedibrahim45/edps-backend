@@ -40,6 +40,9 @@ class ProductionSecurityTests {
         mockMvc.perform(get("/patients"))
                 .andExpect(status().isUnauthorized());
 
+        mockMvc.perform(get("/api/ml/health"))
+                .andExpect(status().isUnauthorized());
+
         mockMvc.perform(get("/patients").with(httpBasic("test-admin", "test-password")))
                 .andExpect(status().isOk());
     }

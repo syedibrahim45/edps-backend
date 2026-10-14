@@ -1,0 +1,8 @@
+.git
+.idea
+.vscode
+target
+build
+*.log
+hs_err_pid*
+.github/modernize

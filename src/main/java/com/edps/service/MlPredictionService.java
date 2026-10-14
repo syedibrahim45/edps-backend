@@ -1,6 +1,7 @@
 package com.edps.service;
 
 import com.edps.dto.MlPredictionResult;
+import com.edps.exception.InvalidRequestException;
 import com.edps.exception.MlServiceException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import tools.jackson.databind.JsonNode;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -63,6 +65,86 @@ public class MlPredictionService {
         }
 
         return parseResponse(response);
+    }
+
+    public JsonNode getHealth() {
+        return getJson("/health");
+    }
+
+    public JsonNode getGlobalExplainability() {
+        return getJson("/explainability/global");
+    }
+
+    public JsonNode explainIndividual(JsonNode request) {
+        if (request == null || !request.isObject() || request.isEmpty()) {
+            throw new InvalidRequestException("A non-empty JSON object is required.");
+        }
+        return postJson("/explainability/individual", request);
+    }
+
+    public JsonNode getFederatedResults() {
+        return getJson("/federated/results");
+    }
+
+    private JsonNode getJson(String path) {
+        try {
+            return validateJsonResponse(restClient.get()
+                    .uri(path)
+                    .retrieve()
+                    .body(JsonNode.class));
+        } catch (ResourceAccessException exception) {
+            throw unavailable(exception);
+        } catch (RestClientResponseException exception) {
+            throw rejected(exception);
+        } catch (RestClientException exception) {
+            throw unreadable(exception);
+        }
+    }
+
+    private JsonNode postJson(String path, JsonNode request) {
+        try {
+            return validateJsonResponse(restClient.post()
+                    .uri(path)
+                    .body(request)
+                    .retrieve()
+                    .body(JsonNode.class));
+        } catch (ResourceAccessException exception) {
+            throw unavailable(exception);
+        } catch (RestClientResponseException exception) {
+            throw rejected(exception);
+        } catch (RestClientException exception) {
+            throw unreadable(exception);
+        }
+    }
+
+    private JsonNode validateJsonResponse(JsonNode response) {
+        if (response == null || response.isNull()
+                || (!response.isObject() && !response.isArray())
+                || response.isEmpty()) {
+            throw invalidResponse();
+        }
+        return response;
+    }
+
+    private MlServiceException unavailable(Exception cause) {
+        return new MlServiceException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "The Python prediction service is unavailable or timed out.",
+                cause);
+    }
+
+    private MlServiceException rejected(Exception cause) {
+        return new MlServiceException(
+                HttpStatus.BAD_GATEWAY,
+                "The Python prediction service rejected the request.",
+                cause);
+    }
+
+    private MlServiceException unreadable(Exception cause) {
+        return new MlServiceException(
+                HttpStatus.BAD_GATEWAY,
+                "The Python prediction service returned an unreadable response.",
+                cause);
     }
 
     static MlPredictionResult parseResponse(Map<String, Object> response) {

@@ -1,27 +1,32 @@
 # Backend Test Report
 
-## Run
+## Pre-change baseline
 
 - Command: `.\mvnw.cmd --batch-mode --no-transfer-progress clean test`
-- Executed: 2026-10-13
-- Result: **PASS**
 - Runtime: Java 21.0.12
-- Test cases: **17 run, 0 failures, 0 errors, 0 skipped**
-- Maven result: `BUILD SUCCESS`
+- Result: **PASS**, 17 tests, 0 failures, 0 errors, 0 skipped.
 
-The command completed after a clean build on this Windows workspace. GitHub Actions itself was not dispatched from this run; its Ubuntu job now applies `chmod +x ./mvnw` before invoking the wrapper, and the Git index records `mvnw` as executable (`100755`).
+## Final verification
 
-## Coverage executed
+- Command: `.\mvnw.cmd --batch-mode --no-transfer-progress clean test`
+- Executed: 2026-10-14
+- Runtime: Java 21.0.12
+- Result: **PASS**, 21 tests, 0 failures, 0 errors, 0 skipped.
+- Maven result: `BUILD SUCCESS`.
 
-- Patient CRUD validation, create/read/update/delete behavior, missing IDs, and safe rejection of deletion when prediction history exists.
-- New and existing patient prediction flows, persisted history reads, and male/female feature encoding.
-- Invalid input, missing patient, mocked ML failure, and transaction rollback assertions.
-- Audit tampering detection, sensitive-value omission from audit payloads, and concurrent append verification.
-- Production Basic authentication, CSRF-protected writes, health endpoint access, and CORS denial for an unconfigured origin.
-- Legacy and explicit FastAPI response parsing and invalid probability rejection.
+A focused `-Dtest=MlPredictionServiceTests test` run also passed all 6 ML service tests, including requests to an isolated local HTTP server.
 
-## Not verified by this test run
+## Coverage exercised
 
-- Live MySQL authentication/connectivity: the test shell had no `DB_URL`, `DB_USERNAME`, or `DB_PASSWORD` environment variables. The MySQL TCP port at `localhost:3306` was reachable, but valid credentials were not available, so a successful DB login could not be established here.
-- Live FastAPI requests: the service is intentionally mocked in automated tests.
-- Frontend/browser end-to-end flows: not run from this backend-only repository.
+- Patient CRUD validation, missing-resource responses, prediction history retention, and non-duplication on updates.
+- New and existing patient predictions, prediction-history endpoints, gender feature mapping, invalid input handling, and rollback following mocked ML failure.
+- Dashboard ML controller route mapping and ML service HTTP proxying, JSON response checks, invalid request handling, and unavailable-service mapping.
+- Audit payload/link verification, tampering detection, sensitive-value omission, and concurrent append serialization.
+- Production authentication, CSRF-protected writes, health access, and rejection of unconfigured CORS origins.
+
+## External checks and limitations
+
+- MySQL TCP at `localhost:3306` was reachable, but `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` were not present in the test process environment. MySQL authentication and real MySQL persistence could not be verified. Automated persistence tests use isolated H2.
+- FastAPI was not running as a live external dependency during the tests. Proxy behavior was verified against a local HTTP stub; prediction controller behavior uses mocked ML responses.
+- No frontend/browser end-to-end test was executed. A Docker build was attempted, but could not start because the Docker CLI is not installed or available on PATH in this environment.
+- The latest GitHub Actions run queried during this task completed successfully on commit `3fdc606` (`Fix Maven wrapper permissions in backend CI`). This remote run predates the current uncommitted working changes; those changes have not been pushed or run in GitHub Actions.

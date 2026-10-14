@@ -141,6 +141,19 @@ Gender accepts `male`, `m`, or `0` and `female`, `f`, or `1`. The outgoing FastA
 
 FastAPI must return a `prediction`, a classification in `risk_level`, `riskLevel`, `classification`, `risk`, or legacy `disease`, and `probability` between `0` and `1`. `disease_type` or `diseaseType` is optional; the existing response `{"prediction":1,"disease":"High Risk","probability":0.82}` is supported. Connection failures/timeouts return `503`; rejected or invalid model responses return `502`. Prediction writes occur only after a valid model response and are transactional.
 
+### ML dashboard proxy
+
+The frontend should call these Spring endpoints instead of calling FastAPI directly:
+
+| Method | Backend endpoint | Proxied FastAPI endpoint |
+| --- | --- | --- |
+| `GET` | `/api/ml/health` | `/health` |
+| `GET` | `/api/ml/explainability/global` | `/explainability/global` |
+| `POST` | `/api/ml/explainability/individual` | `/explainability/individual` |
+| `GET` | `/api/ml/federated/results` | `/federated/results` |
+
+The individual explainability route accepts a non-empty JSON object. ML JSON objects/arrays pass through, malformed/empty responses map to `502`, and connection failures/timeouts map to `503`. These routes use the same configured ML base URL and timeouts as `/predictions`; request or response content is not logged. The FastAPI payload/response shape beyond JSON objects or arrays is passed through because its detailed schema is owned by the Python service.
+
 ### Users
 
 Existing `POST/GET/PUT/DELETE /users` CRUD paths remain. User passwords are BCrypt encoded and never returned in JSON. This user CRUD API is not itself the production login flow.
@@ -150,7 +163,7 @@ Existing `POST/GET/PUT/DELETE /users` CRUD paths remain. User passwords are BCry
 - `GET /integrity/audit/records` — list persistent audit records.
 - `GET /integrity/audit/verify` — recompute SHA-256 payload hashes and verify previous/current hash links.
 
-Patient and prediction events are audited transactionally. Audit payloads contain event names and record references only, not names, contact details, measurements, disease/risk classifications, or probabilities. A database-backed singleton row lock serializes audit appends across application instances. `integrity_audit_records` and the singleton audit lock table are additive; existing audit history is retained.
+Patient and prediction events are audited transactionally. New audit payloads contain event names and record references only, not names, contact details, measurements, disease/risk classifications, or probabilities. Previously stored audit records are retained byte-for-byte so their existing hash-chain verification remains valid. A database-backed singleton row lock serializes new audit appends across application instances. `integrity_audit_records` and the singleton audit lock table are additive.
 
 This is a **centralized, blockchain-inspired integrity prototype**, not Hyperledger or a decentralized blockchain. It cannot prevent a sufficiently privileged database administrator from rewriting history, and SHA-256 is an integrity mechanism, not encryption or anonymization. Protect audit endpoint access and database backups appropriately.
 
@@ -172,12 +185,14 @@ Run the test suite on Windows PowerShell:
 .\mvnw.cmd clean test
 ```
 
-The tests use H2, mock FastAPI, and cover patient CRUD validation, prediction flows and history, gender mapping, rollback on ML failure, audit tampering and concurrent append verification, and production authentication/CSRF/CORS behavior. A GitHub Actions workflow runs the same clean Maven tests with Java 21 on pushes and pull requests without requiring secrets.
+The tests use H2, mock FastAPI for controller workflows, and separately use an isolated local HTTP server for ML proxy integration. They cover patient CRUD validation, prediction flows and history, gender mapping, rollback on ML failure, proxy endpoint routing and failure mapping, audit tampering and concurrent append verification, and production authentication/CSRF/CORS behavior. A GitHub Actions workflow runs the same clean Maven tests with Java 21 on pushes and pull requests without requiring secrets.
+
+See [API_CONTRACT.md](./API_CONTRACT.md) for the frontend request/response summary and [DEPLOYMENT.md](./DEPLOYMENT.md) for container, secret-management, health-probe, and database migration guidance. [BACKEND_TEST_REPORT.md](./BACKEND_TEST_REPORT.md) distinguishes automated test evidence from live-service checks.
 
 ## Known limitations
 
 - MySQL connectivity requires valid local or deployment credentials and a running MySQL server; this cannot be exercised by the H2 test suite.
-- FastAPI behavior is mocked in tests; the Python service must be started separately for live prediction.
+- Prediction FastAPI behavior is mocked in database/controller tests. Dashboard proxy routes are integration-tested against a local HTTP stub, not the real Python service; start FastAPI separately for live use.
 - Multi-user login, patient ownership/authorization, and per-role access control are not implemented. Production currently uses one configured Basic-auth admin.
 - Existing-patient prediction measurement overrides do not persist to the patient profile.
-- The audit chain is centrally stored and application-level; it is not immutable against database administrators and uses a serialized singleton lock to prevent concurrent forks.
+- The audit chain is centrally stored and application-level; it is not immutable against database administrators and uses a database singleton row lock to prevent concurrent forks.
