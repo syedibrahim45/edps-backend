@@ -1,6 +1,7 @@
 package com.edps;
 
 import com.edps.dto.MlPredictionResult;
+import com.edps.dto.DiabetesScreeningResponse;
 import com.edps.entity.AuditRecord;
 import com.edps.entity.Patient;
 import com.edps.entity.Prediction;
@@ -88,6 +89,90 @@ class EdpsBackendApplicationTests {
 
     @Test
     void contextLoadsWithoutMySqlOrPythonService() {
+    }
+
+    @Test
+    void diabetesScreeningReturnsModelResponseWithoutPersistenceOrAudit() throws Exception {
+        when(mlPredictionService.predictDiabetes(any()))
+                .thenReturn(new DiabetesScreeningResponse(
+                        1,
+                        "Prediabetes or diabetes reported in dataset label",
+                        0.72,
+                        0.6447012298480324,
+                        "logistic_regression_balanced",
+                        "cdc-brfss2015-binary-v1",
+                        "Experimental screening output; not a clinical diagnosis."));
+
+        mockMvc.perform(post("/diabetes-screenings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validDiabetesRequest()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.predicted_class").value(1))
+                .andExpect(jsonPath("$.predicted_label")
+                        .value("Prediabetes or diabetes reported in dataset label"))
+                .andExpect(jsonPath("$.positive_class_score").value(0.72))
+                .andExpect(jsonPath("$.threshold").value(0.6447012298480324))
+                .andExpect(jsonPath("$.model_id").value("logistic_regression_balanced"))
+                .andExpect(jsonPath("$.model_version").value("cdc-brfss2015-binary-v1"))
+                .andExpect(jsonPath("$.disclaimer").exists());
+
+        org.junit.jupiter.api.Assertions.assertEquals(0, patientRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(0, predictionRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(0, auditRecordRepository.count());
+        verify(mlPredictionService).predictDiabetes(org.mockito.ArgumentMatchers.argThat(request ->
+                request.toFeatures().equals(Map.ofEntries(
+                        Map.entry("HighBP", 1),
+                        Map.entry("HighChol", 1),
+                        Map.entry("CholCheck", 1),
+                        Map.entry("Smoker", 0),
+                        Map.entry("Stroke", 0),
+                        Map.entry("HeartDiseaseorAttack", 0),
+                        Map.entry("PhysActivity", 1),
+                        Map.entry("Fruits", 1),
+                        Map.entry("Veggies", 1),
+                        Map.entry("HvyAlcoholConsump", 0),
+                        Map.entry("AnyHealthcare", 1),
+                        Map.entry("NoDocbcCost", 0),
+                        Map.entry("DiffWalk", 0),
+                        Map.entry("Sex", 0),
+                        Map.entry("BMI", 0.5),
+                        Map.entry("GenHlth", 3),
+                        Map.entry("MentHlth", 0),
+                        Map.entry("PhysHlth", 0),
+                        Map.entry("Age", 9),
+                        Map.entry("Education", 4),
+                        Map.entry("Income", 5)))));
+    }
+
+    @Test
+    void diabetesScreeningRejectsMissingExtraAndCoercedValuesWithoutCallingMl() throws Exception {
+        String valid = validDiabetesRequest();
+        String missing = valid.replaceAll(",\\s*\"Income\": 5", "");
+        String extra = valid.replace("\"Income\": 5", "\"Income\": 5, \"patientId\": 12");
+        String numericString = valid.replace("\"HighBP\": 1", "\"HighBP\": \"1\"");
+        String booleanCategory = valid.replace("\"HighBP\": 1", "\"HighBP\": true");
+        String fractionalCategory = valid.replace("\"Age\": 9", "\"Age\": 9.5");
+        String outOfRangeCategory = valid.replace("\"GenHlth\": 3", "\"GenHlth\": 6");
+        String bmiString = valid.replace("\"BMI\": 0.5", "\"BMI\": \"0.5\"");
+        String bmiBoolean = valid.replace("\"BMI\": 0.5", "\"BMI\": false");
+        String malformed = valid.replace("\"BMI\": 0.5", "\"BMI\": NaN");
+        String infiniteBmi = valid.replace("\"BMI\": 0.5", "\"BMI\": 1e309");
+
+        for (String invalid : new String[] {
+                missing, extra, numericString, booleanCategory, fractionalCategory,
+                outOfRangeCategory, bmiString, bmiBoolean, malformed, infiniteBmi
+        }) {
+            mockMvc.perform(post("/diabetes-screenings")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalid))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400));
+        }
+
+        verifyNoInteractions(mlPredictionService);
+        org.junit.jupiter.api.Assertions.assertEquals(0, patientRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(0, predictionRepository.count());
+        org.junit.jupiter.api.Assertions.assertEquals(0, auditRecordRepository.count());
     }
 
     @Test
@@ -428,6 +513,34 @@ class EdpsBackendApplicationTests {
                     "heartRate": 72,
                     "cholesterol": 180
                   }
+                }
+                """;
+    }
+
+    private String validDiabetesRequest() {
+        return """
+                {
+                  "HighBP": 1,
+                  "HighChol": 1,
+                  "CholCheck": 1,
+                  "Smoker": 0,
+                  "Stroke": 0,
+                  "HeartDiseaseorAttack": 0,
+                  "PhysActivity": 1,
+                  "Fruits": 1,
+                  "Veggies": 1,
+                  "HvyAlcoholConsump": 0,
+                  "AnyHealthcare": 1,
+                  "NoDocbcCost": 0,
+                  "DiffWalk": 0,
+                  "Sex": 0,
+                  "BMI": 0.5,
+                  "GenHlth": 3,
+                  "MentHlth": 0,
+                  "PhysHlth": 0,
+                  "Age": 9,
+                  "Education": 4,
+                  "Income": 5
                 }
                 """;
     }
